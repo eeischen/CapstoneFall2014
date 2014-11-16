@@ -185,7 +185,7 @@ barplot(tfreq, main="Most Frequently Occurring 2grams in Sample of Twitter Datas
 
 ## Future Plans
 
-We plan to produce an app that predicts the next word in a string of words.  For example, if the user enters "I ate a", the app will predict the next word.  To predict the next word, our algorithm will analyse occurences of one-grams, two-grams, and three-grams (for example, "a", "ate a", and "I ate a") in a sample of the text to determine which word most often follows this sequene of words.
+We plan to produce an app that predicts the next word in a string of words.  For example, if the user enters "I ate a", the app will predict the next word.  To predict the next word, our algorithm will analyse occurences of one-grams, two-grams, and three-grams (for example, "a", "ate a", and "I ate a") in a sample of the text to determine which word most often follows this sequence of words.
 
 In addition, this app will use common word associations.  (We can examine which words are most associated with a given specific words, i.e. most often occur around that word.)  For example, the words in the blogs sample most often associated with "basketball" are "musings" and "often."
 
