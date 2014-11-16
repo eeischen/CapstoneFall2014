@@ -1,0 +1,194 @@
+# Milestone Report: Exploratory Analysis of Twitter, News, and Blog Data
+
+## Synopsis
+
+This report summarizes key features of twitter, news, and blog data (in English and obtained from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip).  The report contains summary statistics about these datasets.  It also briefly discusses plans for creating a prediction algorithm (to predict the next word in a string of words) and app.
+
+This report is aimed at a non-data scientist manager (as the assignment instructed).  In case the manager has a technical background and is curious to see some of the code, we have included a small portion of the code (in grey boxes).  If the manager prefers, he or she can skip the code snippets; the report is written so that it makes sense independently of whether the manager reads the code.  (The goal is to give an overview of the key features and not to dwell on technical details.)
+
+## Data Processing
+
+We began by downloading twitter, news, and blog data from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip
+We then processed the English datasets.
+```{r loaddata, echo=TRUE, cache=TRUE, warning=FALSE}
+blogs<-"en_US.blogs.txt"
+news<-"en_US.news.txt"
+twitter<-"en_US.twitter.txt"
+blines<-readLines(blogs)
+nlines<-readLines(news)
+tlines<-readLines(twitter)
+```
+
+## Basic Summaries: Line Counts, Word Counts, and Data Table
+
+
+```{r linecounts, echo=FALSE, cache=TRUE, eval=TRUE}
+blinecount<-length(blines)
+nlinecount<-length(nlines)
+tlinecount<-length(tlines)
+```
+
+
+```{r wordcounts, echo=FALSE, cache=TRUE, eval=TRUE}
+require(stringr)
+bwords<-sum(str_count(blines, "\\S+"))
+nwords<-sum(str_count(nlines, "\\S+"))
+twords<-sum(str_count(tlines, "\\S+"))
+```
+
+
+
+```{r avgwordsperline, echo=FALSE, cache=TRUE, eval=TRUE}
+bavg<-bwords/blinecount
+navg<-nwords/nlinecount
+tavg<-twords/tlinecount
+```
+
+Here is a data table that gives the word count, the line count, and the average number of words per line for the datasets.
+
+```{r basicdatatable, echo=TRUE, cache=TRUE, eval=TRUE}
+table<-data.frame(blogs=blinecount, news=nlinecount, twitter=tlinecount)
+table<-rbind(table, c(bwords, nwords, twords), c(bavg, navg, tavg))
+row.names(table)<-c("line count", "word count", "average words per line")
+options(scipen=10, digits=0)
+print(table)
+```
+
+## Basic Plots to Illustrate Features of Data
+
+Because of the large size of the files, we take a random sample (1000 lines) of each file and examine that sample to illustrate some of the interesting trends and features of the data.
+
+```{r sampling, echo=FALSE, cache=TRUE, eval=TRUE}
+library(tm)
+library(stringi)
+library(wordcloud)
+require(RWeka)
+bsample<-sample(blinecount)
+nsample<-sample(nlinecount)
+tsample<-sample(tlinecount)
+bsample1000<-bsample[1:1000]
+nsample1000<-nsample[1:1000]
+tsample1000<-tsample[1:1000]
+blines1000<-blines[bsample1000]
+nlines1000<-nlines[nsample1000]
+tlines1000<-tlines[tsample1000]
+bcorpus1000<-Corpus(VectorSource(blines1000), readerControl=list(removePunctuation=TRUE, stopwords=TRUE))
+ncorpus1000<-Corpus(VectorSource(nlines1000), readerControl=list(reader=readPlain, removePunctuation=TRUE))
+tcorpus1000<-Corpus(VectorSource(tlines1000), readerControl=list(reader=readPlain, removePunctuation=TRUE))
+bcorpus1000.dtm<-DocumentTermMatrix(bcorpus1000)
+ncorpus1000.dtm<-DocumentTermMatrix(ncorpus1000)
+tcorpus1000.dtm<-DocumentTermMatrix(tcorpus1000)
+```
+
+The following "wordclouds" illustrate relative frequencies of the most frequently occuring words.  The larger the font of the word, the more frequently it occurs.  So, we see that "and" and "the" occur especially frequently in all three samples.  (To help emphasize the most frequently occurring words, the words are also colored according to how frequently they appear.)  The wordcloud for each sample includes only those words that appear at least 40 times in the sample.  The first wordcloud is for blogs, the second is for news, and the third is for twitter. 
+
+```{r wordcloud, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+library(RColorBrewer)
+bm<-as.matrix(bcorpus1000.dtm)
+nm<-as.matrix(ncorpus1000.dtm)
+tm<-as.matrix(tcorpus1000.dtm)
+bv<-sort(colSums(bm), decreasing=TRUE)
+nv<-sort(colSums(nm), decreasing=TRUE)
+tv<-sort(colSums(tm), decreasing=TRUE)
+bNames<-names(bv)
+nNames<-names(nv)
+tNames<-names(tv)
+bd<-data.frame(word=bNames, freq=bv)
+nd<-data.frame(word=nNames, freq=nv)
+td<-data.frame(word=tNames, freq=tv)
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Wordcloud for blogs")
+bwordcloud<-wordcloud(bd$word, bd$freq, min.freq=40, colors=brewer.pal(9,"Set1"), main="Title")
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Wordcloud for news")
+nwordcloud<-wordcloud(nd$word, nd$freq, min.freq=40, colors=brewer.pal(9,"Set1"))
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Wordcloud for twitter")
+twordcloud<-wordcloud(td$word, td$freq, min.freq=40, colors=brewer.pal(9,"Set1"))
+````
+
+Then 10 most frequently appearing words in each file and the number of times they appear in the sample appears in the table below.  (Each sample consists of 1000 lines of the file.)  The first table is for blogs, the second for news, and the third for twitter.
+```{r wordfrequencies, echo=FALSE, cache=TRUE, eval=TRUE, warning=FALSE}
+bv10<-bv[1:10]
+bv10
+nv10<-nv[1:10]
+nv10
+tv10<-tv[1:10]
+tv10
+```
+
+We also provide barplots to help visualize the number of occurrences of the ten most frequently occurring words.
+
+```{r bars, echo=FALSE, cache=TRUE, eval=TRUE, warning=FALSE}
+barplot(bv10, main="Most Frequently Occurring Words in Sample of Blogs Dataset", ylab="Number of Occurences", xlab="Word")
+barplot(nv10, main="Most Frequently Occurring Words in Sample of News Dataset", ylab="Number of Occurences", xlab="Word")
+barplot(tv10, main="Most Frequently Occurring Words in Sample of Twitter Dataset", ylab="Number of Occurences", xlab="Word")
+```
+
+We now provide some histograms that illustrate the number of words occurring given numbers of times.
+```{r histograms, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+hist(bv[bv>200], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring more than 200 times in blogs dataset")
+hist(bv[bv<=200 & bv>=10], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring 10 to 200 times in blogs dataset")
+hist(nv[nv>200], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring more than 200 times in news dataset")
+hist(nv[nv<=200 & nv>=10], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring 10 to 200 times in news dataset")
+hist(tv[tv>200], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring more than 200 times in twitter dataset")
+hist(nv[tv<=200 & tv>=10], xlab="number of times word appears", ylab="number of words occuring given number of times", main="Histogram for words occurring 10 to 200 times in twitter dataset")
+```
+
+As the histogram illustrates, most words appear few times, and few words appear many times.  In fact, for each sample, the number of words that appears two or fewer times is
+```{r few, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+data.frame(blogs=sum(bv<=2), news=sum(nv<=2), twitter=sum(tv<=2), row.names="number of words")
+```
+
+On the other hand, the number of words appearing more than 200 times is 
+```{r lots, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+data.frame(blogs=sum(bv>=200), news=sum(nv>=200), twitter=sum(tv>=200), row.names="number of words")
+```
+
+(Note: The *total* number of unique words in each sample is given in the table below.)
+```{r totals, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+data.frame(blogs=sum(bv), news=sum(nv), twitter=sum(tv), row.names="number of words")
+```
+
+## ngrams
+
+We briefly introduce ngrams now.  An 2gram is a string of 2 words.  A 3gram is a string of 3 words.  More generally, an ngram is a string of nwords.  So a 1gram is just one word.  Thus, we analysed 1grams above.  Although we only discuss it briefly here, we note that we can also analyse the occurrence of 2grams and 3grams in a similar fashion (i.e. analogous to what we did above).  We briefly now illustrate the case for 2grams, using barplots (for the 5 most common 2grams).
+
+```{r grams, echo=TRUE, cache=TRUE, eval=TRUE, warning=FALSE}
+btoken <- NGramTokenizer(bcorpus1000, Weka_control(min = 2, max = 2, delimiters = " \\r\\n\\t.,;:\"()?!"))
+ntoken<-NGramTokenizer(ncorpus1000, Weka_control(min = 2, max = 2, delimiters = " \\r\\n\\t.,;:\"()?!"))
+ttoken<-NGramTokenizer(tcorpus1000, Weka_control(min = 2, max = 2, delimiters = " \\r\\n\\t.,;:\"()?!"))
+bdf<-data.frame(table(btoken))
+ndf<-data.frame(table(ntoken))
+tdf<-data.frame(table(ttoken))
+border <- bdf[order(bdf$Freq,decreasing = TRUE),]
+norder<-ndf[order(ndf$Freq,decreasing = TRUE),]
+torder<-tdf[order(tdf$Freq,decreasing = TRUE),]
+bfreq<-border$Freq[1:5]
+names(bfreq)<-border$btoken[1:5]
+nfreq<-norder$Freq[1:5]
+names(nfreq)<-norder$ntoken[1:5]
+tfreq<-torder$Freq[1:5]
+names(tfreq)<-torder$ttoken[1:5]
+barplot(bfreq, main="Most Frequently Occurring 2grams in Sample of Blogs Dataset", ylab="Number of Occurences", xlab="2gram")
+barplot(nfreq, main="Most Frequently Occurring 2grams in Sample of News Dataset", ylab="Number of Occurences", xlab="2gram")
+barplot(tfreq, main="Most Frequently Occurring 2grams in Sample of Twitter Dataset", ylab="Number of Occurences", xlab="2gram")
+```
+
+
+
+## Future Plans
+
+We plan to produce an app that predicts the next word in a string of words.  For example, if the user enters "I ate a", the app will predict the next word.  To predict the next word, our algorithm will analyse occurences of one-grams, two-grams, and three-grams (for example, "a", "ate a", and "I ate a") in a sample of the text to determine which word most often follows this sequene of words.
+
+In addition, this app will use common word associations.  (We can examine which words are most associated with a given specific words, i.e. most often occur around that word.)  For example, the words in the blogs sample most often associated with "basketball" are "musings" and "often."
+
+```{r association, echo=TRUE, cache=TRUE, eval=FALSE, warning=FALSE}
+findAssocs(bcorpus1000.dtm, "basketball", 1.00)[,1]
+```
